@@ -13,7 +13,7 @@ class App extends StatelessWidget {
       title: 'Muhurtham',
       initialRoute: RouteNames.splash,
       routes: appRoutes,
-      theme: AppTheme.light,
+      theme: AppTheme.dark,
     );
   }
 }

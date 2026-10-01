@@ -25,6 +25,10 @@ class SearchBarWidget extends StatelessWidget {
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           hintText: hint,
+          filled: false,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
           prefixIcon: const Icon(
             Icons.search_rounded,
             color: AppColors.primary,

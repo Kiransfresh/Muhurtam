@@ -11,14 +11,14 @@ void main() {
   Future<void> openHome(WidgetTester tester, {Key? key}) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.light,
+        theme: AppTheme.dark,
         home: HomePage(key: key),
       ),
     );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('pink splash navigates to the home screen', (tester) async {
+  testWidgets('dark pink splash navigates to the home screen', (tester) async {
     await tester.pumpWidget(const App());
     expect(find.text('A little magic. A lifetime of love.'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1400));
@@ -26,7 +26,7 @@ void main() {
     expect(find.text('Let’s make it unforgettable.'), findsOneWidget);
     expect(
       Theme.of(tester.element(find.byType(HomePage))).brightness,
-      Brightness.light,
+      Brightness.dark,
     );
     expect(tester.takeException(), isNull);
   });
@@ -57,6 +57,7 @@ void main() {
     await openHome(tester);
     await tester.tap(find.text('Explore'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('save-venue-1')));
     await tester.tap(find.byKey(const Key('save-venue-1')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Saved'));
@@ -69,6 +70,7 @@ void main() {
     await tester.tap(find.text('Saved'));
     await tester.pumpAndSettle();
     expect(find.text('Royal Palace Convention'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('save-venue-1')));
     await tester.tap(find.byKey(const Key('save-venue-1')));
     await tester.pumpAndSettle();
     expect(find.text('Love it? Save it.'), findsOneWidget);
@@ -121,7 +123,7 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.ensureVisible(find.text('Photography'));
       expect(tester.takeException(), isNull);
-      for (final tab in ['Explore', 'Saved', 'My plan', 'Home']) {
+      for (final tab in ['Explore', 'Saved', 'Bookings', 'My plan', 'Home']) {
         await tester.tap(find.text(tab));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);

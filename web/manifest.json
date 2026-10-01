@@ -3,9 +3,9 @@
   "short_name": "Muhurtham",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#FFF5F8",
-  "theme_color": "#B53F6A",
-  "description": "A little magic. A lifetime of love. Plan your wedding with Muhurtham.",
+  "background_color": "#261F2B",
+  "theme_color": "#392C3C",
+  "description": "Discover nearby wedding venues, add local listings, and plan every service with Muhurtham.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [

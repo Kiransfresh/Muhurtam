@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import 'glass_card.dart';
+import '../common/brand_mark.dart';
 
 class HeroBanner extends StatelessWidget {
   const HeroBanner({super.key, this.onBook});
@@ -16,7 +17,7 @@ class HeroBanner extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0x44FFFFFF), Color(0x77F9DCE8), Color(0x66EDE1F6)],
+            colors: [Color(0x33714A64), Color(0x33564161), Color(0x22403451)],
           ),
         ),
         child: Padding(
@@ -102,52 +103,6 @@ class HeroBanner extends StatelessWidget {
 
 class _WeddingMotif extends StatelessWidget {
   const _WeddingMotif();
-
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 170,
-      height: 180,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.35),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
-            ),
-          ),
-          Transform.rotate(
-            angle: -0.25,
-            child: const Icon(
-              Icons.favorite_border_rounded,
-              size: 112,
-              color: Color(0xFFCE8CAA),
-            ),
-          ),
-          const Positioned(
-            right: 18,
-            top: 10,
-            child: Icon(
-              Icons.auto_awesome_rounded,
-              size: 32,
-              color: Color(0xFFD3AC7C),
-            ),
-          ),
-          const Positioned(
-            left: 10,
-            bottom: 15,
-            child: Icon(
-              Icons.local_florist_outlined,
-              size: 44,
-              color: Color(0xFFAA8DB8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const BrandMark(size: 160);
 }

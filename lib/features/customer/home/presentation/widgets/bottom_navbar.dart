@@ -52,6 +52,11 @@ class BottomNavbar extends StatelessWidget {
             label: 'Saved',
           ),
           NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month_rounded),
+            label: 'Bookings',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.checklist_outlined),
             selectedIcon: Icon(Icons.checklist_rounded),
             label: 'My plan',

@@ -12,7 +12,7 @@ class PinkGlassBackground extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF7FA), Color(0xFFFCE8F0), Color(0xFFF5EFFA)],
+          colors: [Color(0xFF261F2B), Color(0xFF3E293B), Color(0xFF30273D)],
         ),
       ),
       child: Stack(

@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../routes/route_names.dart';
 import '../../../../shared/widgets/cards/glass_card.dart';
 import '../../../../shared/widgets/common/pink_glass_background.dart';
-import '../../../../shared/widgets/common/service_icon.dart';
+import '../../../../shared/widgets/common/brand_mark.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -44,7 +44,7 @@ class _SplashPageState extends State<SplashPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const ServiceIcon(icon: Icons.favorite_rounded, size: 88),
+                      const BrandMark(size: 100),
                       const SizedBox(height: 24),
                       const Text(
                         'Muhurtham',

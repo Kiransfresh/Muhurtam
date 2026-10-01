@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../../shared/widgets/common/service_icon.dart';
+import '../../../../../shared/widgets/common/brand_mark.dart';
 import '../../../../../theme/app_colors.dart';
 
 class HomeAppBar extends StatelessWidget {
@@ -10,7 +10,7 @@ class HomeAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const ServiceIcon(icon: Icons.favorite_rounded, size: 44),
+        const BrandMark(size: 48),
         const SizedBox(width: 12),
         const Expanded(
           child: Column(
@@ -39,9 +39,9 @@ class HomeAppBar extends StatelessWidget {
           tooltip: 'Notifications',
           onPressed: onNotifications,
           style: IconButton.styleFrom(
-            backgroundColor: Colors.white.withValues(alpha: 0.7),
+            backgroundColor: Colors.white.withValues(alpha: 0.06),
             foregroundColor: AppColors.primary,
-            side: const BorderSide(color: Colors.white),
+            side: const BorderSide(color: AppColors.border),
           ),
           icon: const Icon(Icons.notifications_none_rounded),
         ),

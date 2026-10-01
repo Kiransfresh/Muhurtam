@@ -4,6 +4,12 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../shared/widgets/cards/glass_card.dart';
+import '../../../../../shared/data/local_catalog.dart';
+import '../../../../bookings/presentation/booking_form_page.dart';
+import '../../../../bookings/presentation/bookings_list.dart';
+import '../../../../halls/data/nearby_location.dart';
+import '../../../../halls/presentation/listing_form_page.dart';
+import '../widgets/nearby_filter_bar.dart';
 import '../../../../../shared/widgets/cards/hero_banner.dart';
 import '../../../../../shared/widgets/common/pink_glass_background.dart';
 import '../../../../../shared/widgets/common/service_icon.dart';
@@ -18,7 +24,8 @@ import '../widgets/home_app_bar.dart';
 import '../widgets/search_bar_widget.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.locationSource});
+  final LocationSource? locationSource;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -34,6 +41,17 @@ class _HomePageState extends State<HomePage> {
   bool _loading = true;
   int _tab = 0;
   String _query = '';
+  LocalCatalog? _catalog;
+  LocationPoint? _location;
+  bool _nearby = false;
+  bool _locating = false;
+  bool _catalogBusy = false;
+  String? _city;
+  String? _locationMessage;
+  double _radius = 25;
+  List<HallModel> get _listings => _catalog?.listings ?? dummyHalls;
+  LocationSource get _locationSource =>
+      widget.locationSource ?? DeviceLocationSource();
 
   @override
   void initState() {
@@ -44,15 +62,17 @@ class _HomePageState extends State<HomePage> {
   Future<void> _restorePreferences() async {
     try {
       final preferences = await SharedPreferences.getInstance();
+      final catalog = LocalCatalog(preferences)..load();
       if (!mounted) return;
       final knownIds = weddingServices.map((service) => service.id).toSet();
       setState(() {
         _preferences = preferences;
+        _catalog = catalog;
         _savedIds.addAll(
           (preferences.getStringList('saved_venues') ?? [])
               .map(int.tryParse)
               .whereType<int>()
-              .where((id) => dummyHalls.any((hall) => hall.id == id)),
+              .where((id) => catalog.listings.any((hall) => hall.id == id)),
         );
         _plannedIds.addAll(
           (preferences.getStringList('planned_services') ?? []).where(
@@ -100,6 +120,104 @@ class _HomePageState extends State<HomePage> {
             );
           }
         });
+  }
+
+  Future<void> _openListing() async {
+    final catalog = _catalog;
+    if (catalog == null) {
+      _showMessage('Local storage is not ready. Please reopen the app.');
+      return;
+    }
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ListingFormPage(
+          locationSource: _locationSource,
+          onSave: catalog.addListing,
+        ),
+      ),
+    );
+    if (saved == true && mounted) {
+      setState(() {
+        _nearby = false;
+        _city = null;
+        _locationMessage = null;
+      });
+      _changeTab(1);
+      _showMessage('Listing saved to your local catalog');
+    }
+  }
+
+  Future<void> _openBooking({
+    String serviceId = 'venues',
+    HallModel? listing,
+  }) async {
+    final catalog = _catalog;
+    if (catalog == null) {
+      _showMessage('Local storage is not ready. Please reopen the app.');
+      return;
+    }
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookingFormPage(
+          listings: _listings,
+          serviceId: serviceId,
+          listing: listing,
+          onSave: catalog.addRequest,
+        ),
+      ),
+    );
+    if (saved == true && mounted) {
+      _changeTab(3);
+      _showMessage(
+        'Request saved locally. It has not been sent to the provider.',
+      );
+    }
+  }
+
+  Future<void> _cancelRequest(String id) async {
+    if (_catalogBusy || _catalog == null) return;
+    setState(() => _catalogBusy = true);
+    try {
+      await _catalog!.cancelRequest(id);
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (mounted) _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _catalogBusy = false);
+    }
+  }
+
+  Future<void> _useLocation() async {
+    if (_locating) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _locating = true;
+      _locationMessage = null;
+    });
+    try {
+      final location = await _locationSource.currentLocation();
+      if (!mounted) return;
+      setState(() {
+        _location = location;
+        _nearby = true;
+        _city = null;
+        _locationMessage =
+            'Approximate straight-line distances from saved coordinates. Sample venues are excluded.';
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _nearby = false;
+          _locationMessage = error is LocationException
+              ? error.message
+              : 'Location is unavailable. Choose a city instead.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
   }
 
   void _showMessage(String message) {
@@ -160,11 +278,23 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _openBooking(serviceId: service.id);
+              },
+              icon: const Icon(Icons.calendar_month_outlined),
+              label: const Text('Request this service'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
             child: FilledButton.icon(
               onPressed: () {
                 Navigator.pop(context);
                 if (alreadyPlanned) {
-                  _changeTab(3);
+                  _changeTab(4);
                 } else {
                   _addToPlan(service);
                 }
@@ -191,16 +321,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showVenue(HallModel hall) {
+    final service = weddingServices
+        .where((service) => hall.serviceIds.contains(service.id))
+        .firstOrNull;
     _showSheet(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const ServiceIcon(icon: Icons.other_houses_outlined, size: 64),
+          ServiceIcon(
+            icon: service?.icon ?? Icons.other_houses_outlined,
+            color: service?.color ?? AppColors.primary,
+            size: 64,
+          ),
           const SizedBox(height: 20),
           Text(hall.name, style: _heading),
           const SizedBox(height: 10),
-          Text('${hall.city} · Up to ${hall.capacity} guests', style: _body),
+          Text(
+            hall.capacity > 0
+                ? '${hall.city} · Up to ${hall.capacity} guests'
+                : hall.city,
+            style: _body,
+          ),
           const SizedBox(height: 20),
           GlassCard(
             child: Row(
@@ -209,7 +351,9 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Indicative price\n₹${NumberFormat.decimalPattern('en_IN').format(hall.price)}',
+                    hall.price > 0
+                        ? 'Indicative price\n₹${NumberFormat.decimalPattern('en_IN').format(hall.price)}'
+                        : 'Price on request',
                     style: const TextStyle(
                       height: 1.6,
                       fontWeight: FontWeight.w600,
@@ -220,9 +364,51 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(height: 16),
+          Text(
+            hall.isSample
+                ? 'Sample listing. Prices and availability are illustrative.'
+                : hall.address,
+            style: _body,
+          ),
+          const SizedBox(height: 16),
           const Text(
-            'This is a sample venue from the original app. Prices and availability '
-            'are illustrative; online bookings are not connected yet.',
+            'Services you can request',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: weddingServices
+                .where((service) => hall.serviceIds.contains(service.id))
+                .map(
+                  (service) => ActionChip(
+                    avatar: Icon(service.icon, size: 16, color: service.color),
+                    label: Text(service.title),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _openBooking(serviceId: service.id, listing: hall);
+                    },
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              key: Key('book-venue-${hall.id}'),
+              onPressed: () {
+                Navigator.pop(context);
+                _openBooking(serviceId: hall.serviceIds.first, listing: hall);
+              },
+              icon: const Icon(Icons.calendar_month_outlined),
+              label: const Text('Request booking'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Requests are saved locally, not sent. Availability is not confirmed.',
             style: _body,
           ),
           const SizedBox(height: 24),
@@ -392,6 +578,13 @@ class _HomePageState extends State<HomePage> {
       case 2:
         return _savedVenues();
       case 3:
+        return BookingsList(
+          requests: _catalog?.requests ?? [],
+          onCreate: () => _openBooking(),
+          onCancel: _cancelRequest,
+          busy: _catalogBusy,
+        );
+      case 4:
         return _weddingPlan();
       default:
         return _discovery();
@@ -406,11 +599,19 @@ class _HomePageState extends State<HomePage> {
               .contains(_query),
         )
         .toList();
-    final halls = dummyHalls
+    final halls = _listings
         .where(
-          (hall) => '${hall.name} ${hall.city}'.toLowerCase().contains(_query),
+          (hall) =>
+              '${hall.name} ${hall.city} ${hall.address}'
+                  .toLowerCase()
+                  .contains(_query) &&
+              (_city == null ||
+                  hall.city.toLowerCase() == _city!.toLowerCase()),
         )
         .toList();
+    final visibleHalls = _nearby && _location != null
+        ? nearbyListings(halls, _location!, _radius)
+        : halls;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -433,13 +634,41 @@ class _HomePageState extends State<HomePage> {
         SearchBarWidget(
           controller: _search,
           hint: explore
-              ? 'Search venue names or cities'
+              ? 'Search venues, vendors, or cities'
               : 'Search venues, services, or a city',
           onChanged: (value) =>
               setState(() => _query = value.trim().toLowerCase()),
         ),
+        const SizedBox(height: 14),
+        if (explore)
+          NearbyFilterBar(
+            cities: (_listings.map((hall) => hall.city).toSet().toList()
+              ..sort()),
+            city: _city,
+            onCity: (city) => setState(() {
+              _city = city;
+              _nearby = false;
+              _locationMessage = null;
+            }),
+            onLocation: _useLocation,
+            nearby: _nearby,
+            locating: _locating,
+            radius: _radius,
+            onRadius: (radius) => setState(() => _radius = radius),
+            message: _locationMessage,
+          ),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            key: const Key('add-listing'),
+            onPressed: _openListing,
+            icon: const Icon(Icons.add_business_outlined, size: 18),
+            label: const Text('Add a venue or vendor'),
+          ),
+        ),
         if (!explore && _query.isEmpty) ...[
-          const SizedBox(height: 22),
+          const SizedBox(height: 12),
           HeroBanner(onBook: () => _changeTab(1)),
         ],
         if (!explore && services.isNotEmpty) ...[
@@ -451,35 +680,56 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 14),
           CategoryGrid(
-            services: _query.isEmpty ? services.take(8).toList() : services,
+            services: services,
             plannedIds: _plannedIds,
             onSelected: _showService,
           ),
         ],
-        if (halls.isNotEmpty) ...[
+        if (visibleHalls.isNotEmpty) ...[
           const SizedBox(height: 26),
           _section(
-            explore ? 'Venue inspiration' : 'Places to fall in love with',
+            _nearby
+                ? 'Near your location'
+                : explore
+                ? 'Venues & vendors'
+                : 'Places to fall in love with',
             action: explore ? null : 'See all',
             onAction: () => _changeTab(1),
           ),
           const SizedBox(height: 5),
-          const Text('Sample venues to inspire your planning.', style: _body),
+          const Text(
+            'Your local listings and clearly marked sample venues.',
+            style: _body,
+          ),
           const SizedBox(height: 14),
           FeaturedHalls(
-            halls: !explore && _query.isEmpty ? halls.take(2).toList() : halls,
+            halls: !explore && _query.isEmpty
+                ? visibleHalls.take(2).toList()
+                : visibleHalls,
+            distances: _nearby && _location != null
+                ? {
+                    for (final hall in visibleHalls)
+                      hall.id: distanceKm(_location!, hall),
+                  }
+                : const {},
+            onBook: (hall) =>
+                _openBooking(serviceId: hall.serviceIds.first, listing: hall),
             savedIds: _savedIds,
             onToggleSaved: _toggleSaved,
             onSelected: _showVenue,
           ),
         ],
-        if (halls.isEmpty && (explore || services.isEmpty)) ...[
+        if (visibleHalls.isEmpty &&
+            (explore || services.isEmpty || _nearby || _city != null)) ...[
           const SizedBox(height: 24),
           _empty(
             icon: Icons.search_off_rounded,
-            title: 'No matches just yet',
-            message:
-                'Try a city like Hyderabad, a venue name, or a wedding service.',
+            title: _nearby
+                ? 'No local listings nearby yet'
+                : 'No matches just yet',
+            message: _nearby
+                ? 'Nearby search needs listings with coordinates. Increase the radius or add a venue at its location.'
+                : 'Try another city, a venue name, or a wedding service.',
           ),
         ],
         if (!explore && _query.isEmpty) ...[
@@ -504,7 +754,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   tooltip: 'Open my wedding plan',
-                  onPressed: () => _changeTab(3),
+                  onPressed: () => _changeTab(4),
                   icon: const Icon(
                     Icons.arrow_forward_rounded,
                     color: AppColors.primary,
@@ -530,7 +780,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _savedVenues() {
-    final halls = dummyHalls
+    final halls = _listings
         .where((hall) => _savedIds.contains(hall.id))
         .toList();
     return Column(

@@ -21,7 +21,7 @@ class CategoryGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 900
-            ? 8
+            ? 6
             : constraints.maxWidth >= 340
             ? 4
             : 3;

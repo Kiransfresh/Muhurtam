@@ -8,7 +8,6 @@ class ServiceIcon extends StatelessWidget {
     this.color = AppColors.primary,
     this.size = 52,
   });
-
   final IconData icon;
   final Color color;
   final double size;
@@ -18,23 +17,26 @@ class ServiceIcon extends StatelessWidget {
     return Container(
       width: size,
       height: size,
+      padding: EdgeInsets.all(size * 0.12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, color.withValues(alpha: 0.13)],
+          colors: [
+            color.withValues(alpha: 0.21),
+            color.withValues(alpha: 0.04),
+          ],
         ),
-        borderRadius: BorderRadius.circular(size * 0.32),
-        border: Border.all(color: Colors.white),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.09),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(size * 0.34),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
       ),
-      child: Icon(icon, size: size * 0.48, color: color),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: color.withValues(alpha: 0.17)),
+        ),
+        child: Icon(icon, size: size * 0.43, color: color),
+      ),
     );
   }
 }
